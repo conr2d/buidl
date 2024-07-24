@@ -1,0 +1,19 @@
+[package]
+name = "buidl"
+version = "0.1.0"
+description = "Primitive types for blockchain protocols"
+authors = ["Jeeyong Um <conr2d@proton.me>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/conr2d/buidl.git"
+
+[dependencies]
+buidl-derive = { version = "0.1", path = "derive", optional = true }
+
+[features]
+default = ["std"]
+derive = ["buidl-derive"]
+std = []
+
+[workspace]
+members = ["derive"]
