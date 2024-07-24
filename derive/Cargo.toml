@@ -6,6 +6,7 @@ authors = ["Jeeyong Um <conr2d@proton.me>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/conr2d/buidl.git"
+documentation = "https://docs.rs/buidl-derive"
 
 [lib]
 proc-macro = true
