@@ -103,18 +103,6 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 			}
 		}
 
-		impl #impl_generics AsRef<#inner> for #ty #ty_generics #where_clause {
-			fn as_ref(&self) -> &#inner {
-				&self.#data
-			}
-		}
-
-		impl #impl_generics AsMut<#inner> for #ty #ty_generics #where_clause {
-			fn as_mut(&mut self) -> &mut #inner {
-				&mut self.#data
-			}
-		}
-
 		impl #impl_generics ::core::hash::Hash for #ty #ty_generics #where_clause {
 			fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) {
 				self.#data.hash(state);
@@ -126,6 +114,12 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 
 			fn deref(&self) -> &Self::Target {
 				&self.#data
+			}
+		}
+
+		impl #impl_generics ::core::ops::DerefMut for #ty #ty_generics #where_clause {
+			fn deref_mut(&mut self) -> &mut Self::Target {
+				&mut self.#data
 			}
 		}
 	});

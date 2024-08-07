@@ -39,11 +39,11 @@ macro_rules! test_derive_traits {
 		assert_eq!(s, s2);
 
 		// AsRef
-		assert_eq!(s.as_ref() as &[u8], &a[..]);
+		assert_eq!(s.as_ref(), &a[..]);
 
 		// AsMut
 		let mut s2 = s.clone();
-		(s2.as_mut() as &mut [u8])[2] = 2;
+		s2.as_mut()[2] = 2;
 		assert_eq!(s2, $x::from([1, 2, 2, 4]));
 
 		// Clone
