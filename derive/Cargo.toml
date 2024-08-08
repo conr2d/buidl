@@ -1,6 +1,6 @@
 [package]
 name = "buidl-derive"
-version = "0.1.1"
+version = "0.1.2"
 description = "Custom derive for buidl"
 authors = ["Jeeyong Um <conr2d@proton.me>"]
 edition = "2021"
