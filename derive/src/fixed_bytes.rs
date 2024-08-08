@@ -110,7 +110,7 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 		}
 
 		impl #impl_generics ::core::ops::Deref for #ty #ty_generics #where_clause {
-			type Target = [u8];
+			type Target = #inner;
 
 			fn deref(&self) -> &Self::Target {
 				&self.#data
