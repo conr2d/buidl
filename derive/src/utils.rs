@@ -44,7 +44,7 @@ pub fn crate_access(name: &str) -> Ident {
 	Ident::new(&name, Span::call_site())
 }
 
-pub fn parse_top_attributes(input: &DeriveInput) -> Vec<String> {
+pub fn parse_top_attributes(input: &DeriveInput) -> Vec<Meta> {
 	let mut outer_attrs = input.attrs.iter().filter(|attr| matches!(attr.style, AttrStyle::Outer));
 
 	outer_attrs
@@ -52,16 +52,21 @@ pub fn parse_top_attributes(input: &DeriveInput) -> Vec<String> {
 			attr.path().is_ident("buidl").then(|| {
 				let nested_meta =
 					attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated).unwrap();
-				nested_meta
-					.iter()
-					.map(|meta| match meta {
-						Meta::Path(path) => path.get_ident().unwrap().to_string(),
-						_ => panic!("unexpected attribute"),
-					})
-					.collect()
+				nested_meta.into_iter().collect()
 			})
 		})
 		.unwrap_or_default()
+}
+
+pub fn parse_list_items(meta: &Meta) -> Vec<Meta> {
+	match meta {
+		Meta::List(list) => list
+			.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+			.unwrap()
+			.into_iter()
+			.collect(),
+		_ => Vec::new(),
+	}
 }
 
 fn find_meta_item<'a, F, R, I, M>(kind: &str, mut itr: I, mut pred: F) -> Option<R>

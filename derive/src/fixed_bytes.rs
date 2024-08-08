@@ -124,15 +124,81 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 		}
 	});
 
-	if attrs.iter().find(|attr| *attr == "substrate").is_some() {
-		output.push({
-			// find dependency names
-			let parity_scale_codec = utils::crate_access("parity-scale-codec");
-			let scale_info = utils::crate_access("scale-info");
+	const SUBSTRATE: &str = "substrate";
+	const CORE: &str = "Core";
+	const RUNTIME: &str = "Runtime";
+	const CODEC: &str = "Codec";
+	const TYPE_INFO: &str = "TypeInfo";
+
+	if let Some(meta) = attrs.iter().find(|attr| attr.path().is_ident(SUBSTRATE)) {
+		let items = utils::parse_list_items(meta);
+		let is_enabled = |s: &str| match s {
+			SUBSTRATE => meta.require_path_only().is_ok(),
+			CORE | RUNTIME | CODEC | TYPE_INFO =>
+				items.iter().any(|item| item.path().is_ident(s)),
+			_ => panic!("unsupported substrate feature: {}", s),
+		};
+
+		if is_enabled(SUBSTRATE) || is_enabled(CORE) {
 			let sp_core = utils::crate_access("sp-core");
+
+			output.push(quote! {
+				impl #impl_generics ::#sp_core::crypto::ByteArray for #ty #ty_generics #where_clause {
+					const LEN: usize = #size;
+				}
+
+				impl #impl_generics ::#sp_core::crypto::UncheckedFrom<#inner> for #ty #ty_generics #where_clause {
+					fn unchecked_from(value: #inner) -> Self {
+						Self::from(value)
+					}
+				}
+			});
+
+			if is_enabled(SUBSTRATE) || is_enabled(CODEC) {
+				let parity_scale_codec = utils::crate_access("parity-scale-codec");
+
+				output.push(quote! {
+					impl #impl_generics ::#sp_core::crypto::FromEntropy for #ty #ty_generics #where_clause {
+						fn from_entropy(input: &mut impl ::#parity_scale_codec::Input) -> Result<Self, ::#parity_scale_codec::Error> {
+							let mut result = Self::from([0u8; #size]);
+							input.read(result.as_mut())?;
+							Ok(result)
+						}
+					}
+				});
+			}
+		}
+
+		if is_enabled(SUBSTRATE) || is_enabled(RUNTIME) {
 			let sp_runtime_interface = utils::crate_access("sp-runtime-interface");
 
-			quote! {
+			output.push(quote! {
+				impl #impl_generics ::#sp_runtime_interface::pass_by::PassByInner for #ty #ty_generics #where_clause {
+					type Inner = #inner;
+
+					fn into_inner(self) -> Self::Inner {
+						self.#data
+					}
+
+					fn inner(&self) -> &Self::Inner {
+						&self.#data
+					}
+
+					fn from_inner(inner: Self::Inner) -> Self {
+						Self::from(inner)
+					}
+				}
+
+				impl #impl_generics ::#sp_runtime_interface::pass_by::PassBy for #ty #ty_generics #where_clause {
+					type PassBy = ::#sp_runtime_interface::pass_by::Inner<Self, #inner>;
+				}
+			});
+		}
+
+		if is_enabled(SUBSTRATE) || is_enabled(CODEC) {
+			let parity_scale_codec = utils::crate_access("parity-scale-codec");
+
+			output.push(quote! {
 				impl #impl_generics ::#parity_scale_codec::Encode for #ty #ty_generics #where_clause {
 					fn size_hint(&self) -> usize {
 						self.#data.size_hint()
@@ -156,7 +222,13 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 						<#inner>::max_encoded_len()
 					}
 				}
+			});
+		}
 
+		if is_enabled(SUBSTRATE) || is_enabled(TYPE_INFO) {
+			let scale_info = utils::crate_access("scale-info");
+
+			output.push(quote! {
 				impl #impl_generics ::#scale_info::TypeInfo for #ty #ty_generics #where_clause {
 					type Identity = #inner;
 
@@ -164,46 +236,8 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 						Self::Identity::type_info()
 					}
 				}
-
-				impl #impl_generics ::#sp_core::crypto::ByteArray for #ty #ty_generics #where_clause {
-					const LEN: usize = #size;
-				}
-
-				impl #impl_generics ::#sp_core::crypto::UncheckedFrom<#inner> for #ty #ty_generics #where_clause {
-					fn unchecked_from(value: #inner) -> Self {
-						Self::from(value)
-					}
-				}
-
-				impl #impl_generics ::#sp_core::crypto::FromEntropy for #ty #ty_generics #where_clause {
-					fn from_entropy(input: &mut impl ::#parity_scale_codec::Input) -> Result<Self, ::#parity_scale_codec::Error> {
-						let mut result = Self::from([0u8; #size]);
-						input.read(result.as_mut())?;
-						Ok(result)
-					}
-				}
-
-				impl #impl_generics ::#sp_runtime_interface::pass_by::PassByInner for #ty #ty_generics #where_clause {
-					type Inner = #inner;
-
-					fn into_inner(self) -> Self::Inner {
-						self.#data
-					}
-
-					fn inner(&self) -> &Self::Inner {
-						&self.#data
-					}
-
-					fn from_inner(inner: Self::Inner) -> Self {
-						Self::from(inner)
-					}
-				}
-
-				impl #impl_generics ::#sp_runtime_interface::pass_by::PassBy for #ty #ty_generics #where_clause {
-					type PassBy = ::#sp_runtime_interface::pass_by::Inner<Self, #inner>;
-				}
-			}
-		});
+			});
+		}
 	}
 
 	quote! {
