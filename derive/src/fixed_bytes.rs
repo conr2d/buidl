@@ -134,8 +134,7 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 		let items = utils::parse_list_items(meta);
 		let is_enabled = |s: &str| match s {
 			SUBSTRATE => meta.require_path_only().is_ok(),
-			CORE | RUNTIME | CODEC | TYPE_INFO =>
-				items.iter().any(|item| item.path().is_ident(s)),
+			CORE | RUNTIME | CODEC | TYPE_INFO => items.iter().any(|item| item.path().is_ident(s)),
 			_ => panic!("unsupported substrate feature: {}", s),
 		};
 
