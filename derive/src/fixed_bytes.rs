@@ -45,38 +45,45 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 	let mut output = Vec::new();
 
 	output.push(quote! {
+		#[automatically_derived]
 		impl #impl_generics Clone for #ty #ty_generics #where_clause {
 			fn clone(&self) -> Self {
 				Self { #( #field_names: self.#field_names.clone(), )* }
 			}
 		}
 
+		#[automatically_derived]
 		impl #impl_generics PartialEq for #ty #ty_generics #where_clause {
 			fn eq(&self, other: &Self) -> bool {
 				self.#data.eq(&other.#data)
 			}
 		}
 
+		#[automatically_derived]
 		impl #impl_generics Eq for #ty #ty_generics #where_clause {}
 
+		#[automatically_derived]
 		impl #impl_generics PartialOrd for #ty #ty_generics #where_clause {
 			fn partial_cmp(&self, other: &Self) -> Option<::core::cmp::Ordering> {
 				self.#data.partial_cmp(&other.#data)
 			}
 		}
 
+		#[automatically_derived]
 		impl #impl_generics Ord for #ty #ty_generics #where_clause {
 			fn cmp(&self, other: &Self) -> ::core::cmp::Ordering {
 				self.#data.cmp(&other.#data)
 			}
 		}
 
+		#[automatically_derived]
 		impl #impl_generics From<#inner> for #ty #ty_generics #where_clause {
 			fn from(value: #inner) -> Self {
 				Self { #data: value, #remaining }
 			}
 		}
 
+		#[automatically_derived]
 		impl #impl_generics TryFrom<&[u8]> for #ty #ty_generics #where_clause {
 			type Error = ();
 
@@ -85,30 +92,35 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 			}
 		}
 
+		#[automatically_derived]
 		impl #impl_generics From<#ty #ty_generics> for #inner #where_clause {
 			fn from(value: #ty #ty_generics) -> #inner {
 				value.#data
 			}
 		}
 
+		#[automatically_derived]
 		impl #impl_generics AsRef<[u8]> for #ty #ty_generics #where_clause {
 			fn as_ref(&self) -> &[u8] {
 				&self.#data
 			}
 		}
 
+		#[automatically_derived]
 		impl #impl_generics AsMut<[u8]> for #ty #ty_generics #where_clause {
 			fn as_mut(&mut self) -> &mut [u8] {
 				&mut self.#data
 			}
 		}
 
+		#[automatically_derived]
 		impl #impl_generics ::core::hash::Hash for #ty #ty_generics #where_clause {
 			fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) {
 				self.#data.hash(state);
 			}
 		}
 
+		#[automatically_derived]
 		impl #impl_generics ::core::ops::Deref for #ty #ty_generics #where_clause {
 			type Target = #inner;
 
@@ -117,6 +129,7 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 			}
 		}
 
+		#[automatically_derived]
 		impl #impl_generics ::core::ops::DerefMut for #ty #ty_generics #where_clause {
 			fn deref_mut(&mut self) -> &mut Self::Target {
 				&mut self.#data
@@ -142,10 +155,12 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 			let sp_core = utils::crate_access("sp-core");
 
 			output.push(quote! {
+				#[automatically_derived]
 				impl #impl_generics ::#sp_core::crypto::ByteArray for #ty #ty_generics #where_clause {
 					const LEN: usize = #size;
 				}
 
+				#[automatically_derived]
 				impl #impl_generics ::#sp_core::crypto::UncheckedFrom<#inner> for #ty #ty_generics #where_clause {
 					fn unchecked_from(value: #inner) -> Self {
 						Self::from(value)
@@ -157,6 +172,7 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 				let parity_scale_codec = utils::crate_access("parity-scale-codec");
 
 				output.push(quote! {
+					#[automatically_derived]
 					impl #impl_generics ::#sp_core::crypto::FromEntropy for #ty #ty_generics #where_clause {
 						fn from_entropy(input: &mut impl ::#parity_scale_codec::Input) -> Result<Self, ::#parity_scale_codec::Error> {
 							let mut result = Self::from([0u8; #size]);
@@ -172,6 +188,7 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 			let sp_runtime_interface = utils::crate_access("sp-runtime-interface");
 
 			output.push(quote! {
+				#[automatically_derived]
 				impl #impl_generics ::#sp_runtime_interface::pass_by::PassByInner for #ty #ty_generics #where_clause {
 					type Inner = #inner;
 
@@ -188,6 +205,7 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 					}
 				}
 
+				#[automatically_derived]
 				impl #impl_generics ::#sp_runtime_interface::pass_by::PassBy for #ty #ty_generics #where_clause {
 					type PassBy = ::#sp_runtime_interface::pass_by::Inner<Self, #inner>;
 				}
@@ -198,6 +216,7 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 			let parity_scale_codec = utils::crate_access("parity-scale-codec");
 
 			output.push(quote! {
+				#[automatically_derived]
 				impl #impl_generics ::#parity_scale_codec::Encode for #ty #ty_generics #where_clause {
 					fn size_hint(&self) -> usize {
 						self.#data.size_hint()
@@ -208,14 +227,17 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 					}
 				}
 
+				#[automatically_derived]
 				impl #impl_generics ::#parity_scale_codec::EncodeLike for #ty #ty_generics #where_clause {}
 
+				#[automatically_derived]
 				impl #impl_generics ::#parity_scale_codec::Decode for #ty #ty_generics #where_clause {
 					fn decode<__I: ::#parity_scale_codec::Input>(input: &mut __I) -> Result<Self, ::#parity_scale_codec::Error> {
 						<#inner>::decode(input).map(Into::into)
 					}
 				}
 
+				#[automatically_derived]
 				impl #impl_generics ::#parity_scale_codec::MaxEncodedLen for #ty #ty_generics #where_clause {
 					fn max_encoded_len() -> usize {
 						<#inner>::max_encoded_len()
@@ -228,6 +250,7 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 			let scale_info = utils::crate_access("scale-info");
 
 			output.push(quote! {
+				#[automatically_derived]
 				impl #impl_generics ::#scale_info::TypeInfo for #ty #ty_generics #where_clause {
 					type Identity = #inner;
 
