@@ -12,6 +12,26 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{Data, DataStruct, DeriveInput, Expr, Field, Fields, Ident, Index, Type};
 
+mod kw {
+	pub const CODEC: &str = "Codec";
+	pub const SCALE: &str = "Scale";
+	pub const SUBSTRATE: &str = "Substrate";
+}
+
+trait Contains<T> {
+	fn contains<U>(&self, value: U) -> bool
+	where
+		T: PartialEq<U>;
+}
+impl<T> Contains<T> for Vec<T> {
+	fn contains<U>(&self, value: U) -> bool
+	where
+		T: PartialEq<U>,
+	{
+		self.iter().any(|item| item == &value)
+	}
+}
+
 pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 	let ty = &input.ident;
 	let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
@@ -22,7 +42,7 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 
 	// first field should be a u8 array.
 	let inner = &fields[0].ty;
-	let size = check_array_size(&inner);
+	let size = check_array_size(inner);
 	let data = field_names[0].clone();
 
 	// build an initializer for the remaining fields.
@@ -36,16 +56,23 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 		})
 	});
 
+	let derive = utils::find_list_strings(&attrs, "derive");
+	let skip_derive = utils::find_list_strings(&attrs, "skip_derive");
+
 	let mut output = Vec::new();
 
-	output.push(quote! {
-		#[automatically_derived]
-		impl #impl_generics Clone for #ty #ty_generics #where_clause {
-			fn clone(&self) -> Self {
-				Self { #( #field_names: self.#field_names.clone(), )* }
+	if !skip_derive.contains("Clone") {
+		output.push(quote! {
+			#[automatically_derived]
+			impl #impl_generics Clone for #ty #ty_generics #where_clause {
+				fn clone(&self) -> Self {
+					Self { #( #field_names: self.#field_names.clone(), )* }
+				}
 			}
-		}
+		});
+	}
 
+	output.push(quote! {
 		#[automatically_derived]
 		impl #impl_generics PartialEq for #ty #ty_generics #where_clause {
 			fn eq(&self, other: &Self) -> bool {
@@ -131,56 +158,39 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 		}
 	});
 
-	const SUBSTRATE: &str = "substrate";
-	const CORE: &str = "Core";
-	const RUNTIME: &str = "Runtime";
-	const CODEC: &str = "Codec";
-	const TYPE_INFO: &str = "TypeInfo";
+	if derive.contains(kw::SUBSTRATE) {
+		let sp_core = utils::crate_access("sp-core");
+		let sp_runtime_interface = utils::crate_access("sp-runtime-interface");
+		let parity_scale_codec = utils::crate_access("parity-scale-codec");
 
-	if let Some(meta) = attrs.iter().find(|attr| attr.path().is_ident(SUBSTRATE)) {
-		let items = utils::parse_list_items(meta);
-		let is_enabled = |s: &str| match s {
-			SUBSTRATE => meta.require_path_only().is_ok(),
-			CORE | RUNTIME | CODEC | TYPE_INFO => items.iter().any(|item| item.path().is_ident(s)),
-			_ => panic!("unsupported substrate feature: {}", s),
-		};
+		output.push(quote! {
+			#[automatically_derived]
+			impl #impl_generics ::#sp_core::crypto::ByteArray for #ty #ty_generics #where_clause {
+				const LEN: usize = #size;
+			}
 
-		if is_enabled(SUBSTRATE) || is_enabled(CORE) {
-			let sp_core = utils::crate_access("sp-core");
+			#[automatically_derived]
+			impl #impl_generics ::#sp_core::crypto::UncheckedFrom<#inner> for #ty #ty_generics #where_clause {
+				fn unchecked_from(value: #inner) -> Self {
+					Self::from(value)
+				}
+			}
+		});
 
+		if !skip_derive.contains(kw::CODEC) {
 			output.push(quote! {
 				#[automatically_derived]
-				impl #impl_generics ::#sp_core::crypto::ByteArray for #ty #ty_generics #where_clause {
-					const LEN: usize = #size;
-				}
-
-				#[automatically_derived]
-				impl #impl_generics ::#sp_core::crypto::UncheckedFrom<#inner> for #ty #ty_generics #where_clause {
-					fn unchecked_from(value: #inner) -> Self {
-						Self::from(value)
+				impl #impl_generics ::#sp_core::crypto::FromEntropy for #ty #ty_generics #where_clause {
+					fn from_entropy(input: &mut impl ::#parity_scale_codec::Input) -> Result<Self, ::#parity_scale_codec::Error> {
+						let mut result = Self::from([0u8; #size]);
+						input.read(result.as_mut())?;
+						Ok(result)
 					}
 				}
 			});
-
-			if is_enabled(SUBSTRATE) || is_enabled(CODEC) {
-				let parity_scale_codec = utils::crate_access("parity-scale-codec");
-
-				output.push(quote! {
-					#[automatically_derived]
-					impl #impl_generics ::#sp_core::crypto::FromEntropy for #ty #ty_generics #where_clause {
-						fn from_entropy(input: &mut impl ::#parity_scale_codec::Input) -> Result<Self, ::#parity_scale_codec::Error> {
-							let mut result = Self::from([0u8; #size]);
-							input.read(result.as_mut())?;
-							Ok(result)
-						}
-					}
-				});
-			}
 		}
 
-		if is_enabled(SUBSTRATE) || is_enabled(RUNTIME) {
-			let sp_runtime_interface = utils::crate_access("sp-runtime-interface");
-
+		if !skip_derive.contains("PassBy") {
 			output.push(quote! {
 				#[automatically_derived]
 				impl #impl_generics ::#sp_runtime_interface::pass_by::PassByInner for #ty #ty_generics #where_clause {
@@ -205,10 +215,13 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 				}
 			});
 		}
+	}
 
-		if is_enabled(SUBSTRATE) || is_enabled(CODEC) {
-			let parity_scale_codec = utils::crate_access("parity-scale-codec");
+	if derive.contains(kw::SUBSTRATE) || derive.contains(kw::SCALE) {
+		let parity_scale_codec = utils::crate_access("parity-scale-codec");
+		let scale_info = utils::crate_access("scale-info");
 
+		if !skip_derive.contains(kw::CODEC) {
 			output.push(quote! {
 				#[automatically_derived]
 				impl #impl_generics ::#parity_scale_codec::Encode for #ty #ty_generics #where_clause {
@@ -240,9 +253,7 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 			});
 		}
 
-		if is_enabled(SUBSTRATE) || is_enabled(TYPE_INFO) {
-			let scale_info = utils::crate_access("scale-info");
-
+		if !skip_derive.contains("TypeInfo") {
 			output.push(quote! {
 				#[automatically_derived]
 				impl #impl_generics ::#scale_info::TypeInfo for #ty #ty_generics #where_clause {
