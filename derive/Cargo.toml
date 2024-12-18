@@ -1,6 +1,6 @@
 [package]
 name = "buidl-derive"
-version = "0.1.2"
+version = "0.2.0"
 description = "Custom derive for buidl"
 authors = ["Jeeyong Um <conr2d@proton.me>"]
 edition = "2021"
@@ -12,7 +12,7 @@ documentation = "https://docs.rs/buidl-derive"
 proc-macro = true
 
 [dependencies]
-proc-macro-crate = "3.1"
+proc-macro-crate = "3.2"
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = "2.0"
