@@ -79,7 +79,7 @@ fn derive_substrate() {
 
 	#[allow(unused)]
 	#[derive(FixedBytes, Debug)]
-	#[buidl(substrate)]
+	#[buidl(derive(Substrate))]
 	struct Substrate([u8; 4]);
 
 	let s = Substrate::from([1, 2, 3, 4]);

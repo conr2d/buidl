@@ -63,6 +63,15 @@ pub fn parse_list_items(meta: &Meta) -> Vec<Meta> {
 	}
 }
 
+pub fn find_list_strings<'a>(attrs: impl IntoIterator<Item = &'a Meta>, kind: &str) -> Vec<String> {
+	attrs
+		.into_iter()
+		.filter(|attr| attr.path().is_ident(kind))
+		.flat_map(parse_list_items)
+		.filter_map(|meta| meta.path().get_ident().map(|ident| ident.to_string()))
+		.collect()
+}
+
 fn find_meta_item<'a, F, R, I, M>(kind: &str, mut itr: I, mut pred: F) -> Option<R>
 where
 	F: FnMut(M) -> Option<R> + Clone,
