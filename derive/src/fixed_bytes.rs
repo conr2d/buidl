@@ -13,10 +13,20 @@ use quote::{quote, ToTokens};
 use syn::{Data, DataStruct, DeriveInput, Expr, Field, Fields, Ident, Index, Type};
 
 mod kw {
+	pub const DERIVE: &str = "derive";
+	pub const SKIP_DERIVE: &str = "skip_derive";
+
+	pub const CLONE: &str = "Clone";
 	pub const CODEC: &str = "Codec";
+	pub const PASS_BY: &str = "PassBy";
 	pub const SCALE: &str = "Scale";
 	pub const SUBSTRATE: &str = "Substrate";
+	pub const TYPE_INFO: &str = "TypeInfo";
 }
+
+pub const SUPPORTED_ATTRIBUTES: &[&str] = &[kw::DERIVE, kw::SKIP_DERIVE];
+pub const SUPPORTED_DERIVES: &[&str] = &[kw::SCALE, kw::SUBSTRATE];
+pub const SUPPORTED_SKIP_DERIVES: &[&str] = &[kw::CLONE, kw::CODEC, kw::PASS_BY, kw::TYPE_INFO];
 
 trait Contains<T> {
 	fn contains<U>(&self, value: U) -> bool
@@ -36,6 +46,11 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 	let ty = &input.ident;
 	let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 	let attrs = utils::parse_top_attributes(&input);
+	let attrs_str = attrs
+		.iter()
+		.filter_map(|attr| attr.path().get_ident().map(|ident| ident.to_string()))
+		.collect::<Vec<_>>();
+	check_attributes("buidl", &attrs_str, SUPPORTED_ATTRIBUTES);
 
 	let fields = check_struct_fields(&input.data);
 	let field_names = struct_field_names(fields.clone());
@@ -57,11 +72,14 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 	});
 
 	let derive = utils::find_list_strings(&attrs, "derive");
+	check_attributes("derive", &derive, SUPPORTED_DERIVES);
+
 	let skip_derive = utils::find_list_strings(&attrs, "skip_derive");
+	check_attributes("skip_derive", &skip_derive, SUPPORTED_SKIP_DERIVES);
 
 	let mut output = Vec::new();
 
-	if !skip_derive.contains("Clone") {
+	if !skip_derive.contains(kw::CLONE) {
 		output.push(quote! {
 			#[automatically_derived]
 			impl #impl_generics Clone for #ty #ty_generics #where_clause {
@@ -160,8 +178,6 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 
 	if derive.contains(kw::SUBSTRATE) {
 		let sp_core = utils::crate_access("sp-core");
-		let sp_runtime_interface = utils::crate_access("sp-runtime-interface");
-		let parity_scale_codec = utils::crate_access("parity-scale-codec");
 
 		output.push(quote! {
 			#[automatically_derived]
@@ -178,6 +194,8 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 		});
 
 		if !skip_derive.contains(kw::CODEC) {
+			let parity_scale_codec = utils::crate_access("parity-scale-codec");
+
 			output.push(quote! {
 				#[automatically_derived]
 				impl #impl_generics ::#sp_core::crypto::FromEntropy for #ty #ty_generics #where_clause {
@@ -190,7 +208,9 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 			});
 		}
 
-		if !skip_derive.contains("PassBy") {
+		if !skip_derive.contains(kw::PASS_BY) {
+			let sp_runtime_interface = utils::crate_access("sp-runtime-interface");
+
 			output.push(quote! {
 				#[automatically_derived]
 				impl #impl_generics ::#sp_runtime_interface::pass_by::PassByInner for #ty #ty_generics #where_clause {
@@ -218,10 +238,9 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 	}
 
 	if derive.contains(kw::SUBSTRATE) || derive.contains(kw::SCALE) {
-		let parity_scale_codec = utils::crate_access("parity-scale-codec");
-		let scale_info = utils::crate_access("scale-info");
-
 		if !skip_derive.contains(kw::CODEC) {
+			let parity_scale_codec = utils::crate_access("parity-scale-codec");
+
 			output.push(quote! {
 				#[automatically_derived]
 				impl #impl_generics ::#parity_scale_codec::Encode for #ty #ty_generics #where_clause {
@@ -253,7 +272,9 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 			});
 		}
 
-		if !skip_derive.contains("TypeInfo") {
+		if !skip_derive.contains(kw::TYPE_INFO) {
+			let scale_info = utils::crate_access("scale-info");
+
 			output.push(quote! {
 				#[automatically_derived]
 				impl #impl_generics ::#scale_info::TypeInfo for #ty #ty_generics #where_clause {
@@ -280,6 +301,16 @@ fn check_struct_fields(data: &Data) -> Vec<&Field> {
 			Fields::Unit => panic!("no fields"),
 		},
 		_ => panic!("`struct` expected"),
+	}
+}
+
+fn check_attributes(attr: &str, items: &[String], supported: &[&str]) {
+	let unsupported = items
+		.iter()
+		.filter(|item| !supported.contains(&item.as_str()))
+		.collect::<Vec<_>>();
+	if !unsupported.is_empty() {
+		panic!("`{}` doesn't support {:?}", attr, unsupported);
 	}
 }
 
