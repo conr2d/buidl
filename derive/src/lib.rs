@@ -48,20 +48,20 @@ mod utils;
 ///
 /// ### Polkadot SDK traits (Optional)
 ///
-/// Polkadot SDK traits are derived when the `substrate` attribute is specified.
+/// Polkadot SDK traits are derived when the `derive(Substrate)` attribute is specified.
 ///
 /// ```
 /// # use buidl_derive::FixedBytes;
 /// # use core::marker::PhantomData;
 /// #[derive(FixedBytes)]
-/// #[buidl(substrate)]
+/// #[buidl(derive(Substrate))]
 /// struct CryptoBytes<const N: usize, T = ()>([u8; N], PhantomData<fn() -> T>);
 /// ```
 ///
-/// - [`ByteArray`], [`UncheckedFrom`], [`FromEntropy`]
-/// - [`PassBy`], [`PassByInner`]
-/// - [`Encode`], [`EncodeLike`], [`Decode`], `MaxEncodedLen`
-/// - [`TypeInfo`]
+/// - [`ByteArray`], [`UncheckedFrom`]
+/// - `PassBy`: [`PassBy`], [`PassByInner`]
+/// - `Codec`: [`Encode`], [`EncodeLike`], [`Decode`], `MaxEncodedLen`, [`FromEntropy`]
+/// - `TypeInfo`: [`TypeInfo`]
 ///
 /// [`ByteArray`]: https://docs.rs/sp-core/32.0.0/sp_core/crypto/trait.ByteArray.html
 /// [`UncheckedFrom`]: https://docs.rs/sp-core/32.0.0/sp_core/crypto/trait.UncheckedFrom.html
