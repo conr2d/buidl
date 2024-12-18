@@ -160,8 +160,6 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 
 	if derive.contains(kw::SUBSTRATE) {
 		let sp_core = utils::crate_access("sp-core");
-		let sp_runtime_interface = utils::crate_access("sp-runtime-interface");
-		let parity_scale_codec = utils::crate_access("parity-scale-codec");
 
 		output.push(quote! {
 			#[automatically_derived]
@@ -178,6 +176,8 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 		});
 
 		if !skip_derive.contains(kw::CODEC) {
+			let parity_scale_codec = utils::crate_access("parity-scale-codec");
+
 			output.push(quote! {
 				#[automatically_derived]
 				impl #impl_generics ::#sp_core::crypto::FromEntropy for #ty #ty_generics #where_clause {
@@ -191,6 +191,8 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 		}
 
 		if !skip_derive.contains("PassBy") {
+			let sp_runtime_interface = utils::crate_access("sp-runtime-interface");
+
 			output.push(quote! {
 				#[automatically_derived]
 				impl #impl_generics ::#sp_runtime_interface::pass_by::PassByInner for #ty #ty_generics #where_clause {
@@ -218,10 +220,9 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 	}
 
 	if derive.contains(kw::SUBSTRATE) || derive.contains(kw::SCALE) {
-		let parity_scale_codec = utils::crate_access("parity-scale-codec");
-		let scale_info = utils::crate_access("scale-info");
-
 		if !skip_derive.contains(kw::CODEC) {
+			let parity_scale_codec = utils::crate_access("parity-scale-codec");
+
 			output.push(quote! {
 				#[automatically_derived]
 				impl #impl_generics ::#parity_scale_codec::Encode for #ty #ty_generics #where_clause {
@@ -254,6 +255,8 @@ pub fn expand_fixed_bytes(input: DeriveInput) -> TokenStream {
 		}
 
 		if !skip_derive.contains("TypeInfo") {
+			let scale_info = utils::crate_access("scale-info");
+
 			output.push(quote! {
 				#[automatically_derived]
 				impl #impl_generics ::#scale_info::TypeInfo for #ty #ty_generics #where_clause {
