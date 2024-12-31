@@ -1,5 +1,9 @@
 # Buidl
 
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/conr2d/buidl/ci.yml?event=push)](https://github.com/conr2d/buidl)
+[![Crates.io Version](https://img.shields.io/crates/v/buidl)](https://crates.io/crates/buidl)
+[![GitHub License](https://img.shields.io/badge/license-MIT%2FApache2-blue)](#LICENSE)
+
 Primitive types for blockchain protocols.
 
 Rust's orphan rule makes it challenging to extend types from external crate with new traits.
