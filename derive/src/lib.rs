@@ -74,6 +74,6 @@ mod utils;
 /// [`TypeInfo`]: https://docs.rs/scale-info/2.11.3/scale_info/trait.TypeInfo.html
 #[proc_macro_derive(FixedBytes, attributes(buidl))]
 pub fn derive_fixed_bytes(input: TokenStream) -> TokenStream {
-	let input = parse_macro_input!(input as DeriveInput);
-	expand_fixed_bytes(input).into()
+    let input = parse_macro_input!(input as DeriveInput);
+    expand_fixed_bytes(input).into()
 }
